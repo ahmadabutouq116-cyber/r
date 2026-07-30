@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ri'aya — Notifications (Redesign)</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --panel:#ffffff;
+    --muted:#6b7280;
+    --text:#0f172a;
+    --accent:#0b5fff;
+    --card-border:rgba(15,23,42,0.06);
+    --unread-accent:#ff5a5f;
+    --radius:8px;
+    --shadow-hover: 0 8px 20px rgba(2,6,23,0.08);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+
+  /* Panel container */
+  .notif-panel{
+    width:420px;
+    max-height:640px;
+    background:var(--panel);
+    border-radius:12px;
+    box-shadow: 0 6px 30px rgba(2,6,23,0.06);
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    color:var(--text);
+    border:1px solid rgba(15,23,42,0.03);
+  }
+
+  /* Header */
+  .header{
+    height:48px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .title h3{
+    margin:0;
+    font-size:16px;
+    font-weight:600;
+    line-height:1;
+  }
+  .unread-pill{
+    background:var(--accent);
+    color:white;
+    font-size:12px;
+    padding:4px 8px;
+    border-radius:999px;
+    font-weight:600;
+  }
+  .header-actions{ display:flex; gap:8px; align-items:center; }
+
+  .icon-btn{
+    width:36px; height:36px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center;
+    background:transparent; border:1px solid transparent; cursor:pointer;
+  }
+  .icon-btn:hover{ background:rgba(11,95,255,0.06); border-color:rgba(11,95,255,0.08); }
+
+  /* AI Daily Summary */
+  .ai-summary{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    padding:8px;
+    border-radius:10px;
+    background:linear-gradient(180deg, rgba(11,95,255,0.03), rgba(11,95,255,0.01));
+  }
+  .chip{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    padding:8px 10px;
+    background:var(--panel);
+    border-radius:10px;
+    border:1px solid rgba(15,23,42,0.04);
+    min-width:80px;
+    cursor:pointer;
+  }
+  .chip .num{ font-weight:700; color:var(--text); font-size:14px; }
+  .chip .label{ font-size:12px; color:var(--muted); }
+
+  /* Controls row */
+  .controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .search{
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(15,23,42,0.02);
+    padding:8px;
+    border-radius:8px;
+    border:1px solid transparent;
+  }
+  .search input{
+    border:0; outline:0; background:transparent; font-size:13px; width:100%;
+  }
+  .filter{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .btn{
+    background:var(--accent);
+    color:white;
+    border:0;
+    padding:8px 10px;
+    border-radius:8px;
+    font-weight:600;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .btn.secondary{
+    background:transparent; color:var(--muted); border:1px solid rgba(15,23,42,0.04);
+  }
+
+  /* Notification list */
+  .list{
+    overflow:auto;
+    padding-right:6px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  /* Custom scrollbar */
+  .list::-webkit-scrollbar{ width:8px; }
+  .list::-webkit-scrollbar-thumb{ background:rgba(15,23,42,0.12); border-radius:8px; }
+  .list::-webkit-scrollbar-thumb:hover{ background:rgba(15,23,42,0.18); }
+  .list{ scrollbar-width:thin; scrollbar-color:rgba(15,23,42,0.12) transparent; }
+
+  /* Notification card */
+  .card{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    padding:10px;
+    border-radius:10px;
+    background:var(--panel);
+    border:1px solid var(--card-border);
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    min-height:68px;
+  }
+  .card:hover{ transform:translateY(-2px); box-shadow:var(--shadow-hover); border-color:rgba(11,95,255,0.08); }
+  .card.unread{ box-shadow:none; border-left:4px solid var(--unread-accent); }
+  .icon{
+    width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px;
+    background:rgba(11,95,255,0.06); color:var(--accent);
+    flex-shrink:0;
+  }
+  .text{
+    flex:1; min-width:0;
+  }
+  .text .title{ font-size:14px; font-weight:600; color:var(--text); margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .text .desc{ font-size:13px; color:var(--muted); line-height:1.3; max-height:2.6em; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .meta{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  .time{ font-size:12px; color:var(--muted); }
+  .action{
+    background:transparent; border:1px solid rgba(15,23,42,0.06); padding:6px 10px; border-radius:8px; font-size:13px; cursor:pointer;
+  }
+  .action.primary{ background:var(--accent); color:white; border:0; }
+
+  /* Overflow menu */
+  .more{ background:transparent; border:0; color:var(--muted); cursor:pointer; padding:6px; border-radius:6px; }
+  .more:hover{ background:rgba(15,23,42,0.03); color:var(--text); }
+
+  /* Footer */
+  .footer{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:6px; }
+  .view-all{ font-size:13px; color:var(--accent); font-weight:600; cursor:pointer; }
+
+  /* Modal */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(2,6,23,0.45); display:flex; align-items:center; justify-content:center; z-index:60; }
+  .modal{ width:560px; background:var(--panel); border-radius:12px; padding:18px; box-shadow:0 20px 60px rgba(2,6,23,0.3); border:1px solid rgba(15,23,42,0.04); }
+  .modal h2{ margin:0 0 6px 0; font-size:16px; font-weight:700; }
+  .modal p{ margin:0 0 12px 0; color:var(--muted); font-size:13px; }
+  .toggles{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .toggle{
+    display:flex; align-items:center; gap:8px; padding:8px; border-radius:8px; background:rgba(15,23,42,0.02); border:1px solid rgba(15,23,42,0.03);
+    flex:1 1 48%;
+  }
+  .toggle input{ width:40px; height:22px; position:relative; appearance:none; background:rgba(15,23,42,0.06); border-radius:999px; outline:none; cursor:pointer; }
+  .toggle input:checked{ background:var(--accent); }
+  .category-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:12px; }
+  .category{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px; border-radius:8px; border:1px solid rgba(15,23,42,0.04); }
+  .freq{ margin-bottom:12px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
+  .link{ background:transparent; border:0; color:var(--muted); cursor:pointer; text-decoration:underline; font-size:13px; }
+
+  /* Small helpers */
+  .muted{ color:var(--muted); font-size:13px; }
+  .sr-only{ position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
+</style>
+</head>
+<body style="background:var(--bg); display:flex; align-items:center; justify-content:center; height:100vh; padding:20px;">
+
+<!-- Notification Panel -->
+<div class="notif-panel" role="region" aria-label="Notifications panel">
+  <!-- Header -->
+  <div class="header">
+    <div class="title">
+      <h3>Notifications</h3>
+      <div class="unread-pill" id="unreadCount">3</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="markAllRead" title="Mark all read" aria-label="Mark all read">✓</button>
+      <button class="icon-btn" id="openSettings" title="Notification settings" aria-label="Notification settings">⚙️</button>
+    </div>
+  </div>
+
+  <!-- AI Daily Summary -->
+  <div class="ai-summary" aria-hidden="false">
+    <div class="chip" data-filter="critical" tabindex="0"><div class="num" id="k-critical">2</div><div class="label">Critical</div></div>
+    <div class="chip" data-filter="labs" tabindex="0"><div class="num" id="k-labs">5</div><div class="label">Pending Labs</div></div>
+    <div class="chip" data-filter="shifts" tabindex="0"><div class="num" id="k-shifts">1</div><div class="label">Shift Requests</div></div>
+    <div class="chip" data-filter="ai" tabindex="0"><div class="num" id="k-ai">3</div><div class="label">AI Recs</div></div>
+    <div class="chip" data-filter="messages" tabindex="0"><div class="num" id="k-msg">4</div><div class="label">Messages</div></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls" role="toolbar" aria-label="Notification controls">
+    <div class="search" role="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="6" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <input id="searchInput" placeholder="Search notifications" aria-label="Search notifications" />
+    </div>
+    <div class="filter">
+      <select id="typeFilter" aria-label="Filter notifications" style="padding:8px;border-radius:8px;border:1px solid rgba(15,23,42,0.04);font-size:13px;">
+        <option value="all">All types</option>
+        <option value="critical">Critical</option>
+        <option value="lab">Lab</option>
+        <option value="shift">Shift</option>
+        <option value="message">Message</option>
+        <option value="ai">AI</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Notification list -->
+  <div class="list" id="notifList" role="list" aria-label="Notification list" tabindex="0">
+    <!-- Cards will be injected here -->
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="muted">Showing latest 20</div>
+    <div class="view-all" id="viewAll">View all</div>
+  </div>
+</div>
+
+<!-- Settings Modal (hidden) -->
+<div id="modalBackdrop" class="modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal" role="document">
+    <h2 id="modalTitle">Notification Settings</h2>
+    <p class="muted">Control how you receive notifications. These settings are stored locally and affect only your UI experience.</p>
+
+    <div class="toggles">
+      <label class="toggle">Desktop notifications
+        <input type="checkbox" id="desktopToggle" />
+      </label>
+      <label class="toggle">Email notifications
+        <input type="checkbox" id="emailToggle" />
+      </label>
+      <label class="toggle">Sound
+        <input type="checkbox" id="soundToggle" />
+      </label>
+      <label class="toggle">Play test
+        <button id="playTest" class="btn secondary" style="padding:6px 8px;">Send test</button>
+      </label>
+    </div>
+
+    <div class="category-grid">
+      <div class="category">
+        <div>
+          <div style="font-weight:600">AI recommendations</div>
+          <div class="muted" style="font-size:12px">Toggle AI suggestions</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="aiToggle" />
+          <select id="aiSeverity" aria-label="AI severity">
+            <option value="all">All</option><option value="critical">Critical only</option><option value="none">None</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="category">
+        <div>
+          <div style="font-weight:600">Lab alerts</div>
+          <div class="muted" style="font-size:12px">Critical lab changes</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="labToggle" />
+          <select id="labSeverity" aria-label="Lab severity">
+            <option value="all">All</option><option value="critical">Critical only</option><option value="none">None</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="category">
+        <div>
+          <div style="font-weight:600">Shift requests</div>
+          <div class="muted" style="font-size:12px">Swap and coverage</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="shiftToggle" />
+          <select id="shiftSeverity" aria-label="Shift severity">
+            <option value="all">All</option><option value="critical">Critical only</option><option value="none">None</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="category">
+        <div>
+          <div style="font-weight:600">Messages</div>
+          <div class="muted" style="font-size:12px">Direct messages</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="msgToggle" />
+          <select id="msgSeverity" aria-label="Message severity">
+            <option value="all">All</option><option value="critical">Critical only</option><option value="none">None</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="freq">
+      <div style="font-weight:600; margin-bottom:6px;">Notification frequency</div>
+      <label style="display:inline-flex; gap:8px; align-items:center; margin-right:12px;"><input type="radio" name="freq" value="immediate" checked> Immediate</label>
+      <label style="display:inline-flex; gap:8px; align-items:center; margin-right:12px;"><input type="radio" name="freq" value="hourly"> Hourly digest</label>
+      <label style="display:inline-flex; gap:8px; align-items:center;"><input type="radio" name="freq" value="daily"> Daily summary</label>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <button id="resetSettings" class="link">Reset to defaults</button>
+      <div class="modal-actions">
+        <button id="cancelSettings" class="btn secondary">Cancel</button>
+        <button id="saveSettings" class="btn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Sample data (frontend-only) ===== */
+const sampleNotifications = [
+  { id:1, type:'critical', title:'Patient A - Cardiac arrest', desc:'Immediate attention required in ER bay 3', time: Date.now()-1000*60*12, unread:true, actionLabel:'Open' },
+  { id:2, type:'lab', title:'Lab result: Potassium high', desc:'K+ 6.2 mmol/L for Patient B', time: Date.now()-1000*60*45, unread:true, actionLabel:'Acknowledge' },
+  { id:3, type:'message', title:'Message from Dr. Ali', desc:'Please review the CT scan when available', time: Date.now()-1000*60*90, unread:false, actionLabel:'Reply' },
+  { id:4, type:'shift', title:'Shift swap request', desc:'Nurse Lina requests swap for 2026-08-02', time: Date.now()-1000*60*180, unread:true, actionLabel:'Review' },
+  { id:5, type:'ai', title:'AI: Deterioration risk', desc:'Patient C risk increased by 18% in last 2h', time: Date.now()-1000*60*300, unread:false, actionLabel:'View' },
+];
+
+/* ===== Utilities ===== */
+const el = id => document.getElementById(id);
+const formatRelative = ts => {
+  const diff = Math.floor((Date.now()-ts)/1000);
+  if(diff < 60) return `${diff}s`;
+  if(diff < 3600) return `${Math.floor(diff/60)}m`;
+  if(diff < 86400) return `${Math.floor(diff/3600)}h`;
+  return `${Math.floor(diff/86400)}d`;
+};
+
+/* ===== Local settings persistence ===== */
+const SETTINGS_KEY = 'riaya_notification_settings_v1';
+const defaultSettings = {
+  desktop:true, email:false, sound:true,
+  categories:{ ai:true, lab:true, shift:true, message:true },
+  severity:{ ai:'all', lab:'all', shift:'all', message:'all' },
+  frequency:'immediate',
+  volume:70
+};
+function loadSettings(){ try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || defaultSettings; }catch(e){ return defaultSettings; } }
+function saveSettings(s){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+
+/* ===== Render logic ===== */
+const listNode = el('notifList');
+let notifications = sampleNotifications.slice();
+
+function renderList(){
+  const settings = loadSettings();
+  const search = el('searchInput').value.trim().toLowerCase();
+  const typeFilter = el('typeFilter').value;
+  listNode.innerHTML = '';
+  const filtered = notifications.filter(n=>{
+    if(typeFilter !== 'all' && n.type !== typeFilter) return false;
+    if(!settings.categories[n.type] && n.type in settings.categories) return false;
+    if(search){
+      return (n.title + ' ' + n.desc).toLowerCase().includes(search);
+    }
+    return true;
+  });
+  // update unread count
+  const unreadCount = notifications.filter(n=>n.unread).length;
+  el('unreadCount').textContent = unreadCount;
+
+  filtered.forEach(n=>{
+    const card = document.createElement('div');
+    card.className = 'card' + (n.unread ? ' unread' : '');
+    card.setAttribute('role','listitem');
+    card.tabIndex = 0;
+
+    const icon = document.createElement('div');
+    icon.className = 'icon';
+    icon.innerText = typeIcon(n.type);
+    icon.title = n.type;
+
+    const text = document.createElement('div');
+    text.className = 'text';
+    const t = document.createElement('div'); t.className='title'; t.textContent = n.title;
+    const d = document.createElement('div'); d.className='desc'; d.textContent = n.desc;
+    text.appendChild(t); text.appendChild(d);
+
+    const meta = document.createElement('div'); meta.className='meta';
+    const time = document.createElement('div'); time.className='time'; time.textContent = formatRelative(n.time);
+    const action = document.createElement('button'); action.className='action primary'; action.textContent = n.actionLabel;
+    action.addEventListener('click', (ev)=>{ ev.stopPropagation(); handlePrimaryAction(n.id); });
+    const more = document.createElement('button'); more.className='more'; more.innerHTML='⋯';
+    more.title='More actions';
+    more.addEventListener('click', (ev)=>{ ev.stopPropagation(); showOverflowMenu(n.id, more); });
+
+    meta.appendChild(time);
+    meta.appendChild(action);
+    meta.appendChild(more);
+
+    card.appendChild(icon);
+    card.appendChild(text);
+    card.appendChild(meta);
+
+    // keyboard interactions
+    card.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ handlePrimaryAction(n.id); }
+      if(e.key === 'ArrowDown'){ e.preventDefault(); const next = card.nextElementSibling; if(next) next.focus(); }
+      if(e.key === 'ArrowUp'){ e.preventDefault(); const prev = card.previousElementSibling; if(prev) prev.focus(); }
+    });
+
+    // click marks read and triggers primary action
+    card.addEventListener('click', ()=>{ markRead(n.id); handlePrimaryAction(n.id); });
+
+    listNode.appendChild(card);
+  });
+
+  // if empty
+  if(filtered.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'muted';
+    empty.style.padding = '18px';
+    empty.textContent = 'No notifications match your filters.';
+    listNode.appendChild(empty);
+  }
+}
+
+/* ===== Helpers for icons and actions ===== */
+function typeIcon(type){
+  switch(type){
+    case 'critical': return '⚠️';
+    case 'lab': return '🧪';
+    case 'shift': return '🔁';
+    case 'message': return '✉️';
+    case 'ai': return '🤖';
+    default: return '🔔';
+  }
+}
+function handlePrimaryAction(id){
+  // UI-only: mark read and show a small toast (no backend changes)
+  markRead(id);
+  const n = notifications.find(x=>x.id===id);
+  if(n){
+    showToast(`${n.actionLabel}: ${n.title}`);
+  }
+}
+function markRead(id){
+  const n = notifications.find(x=>x.id===id);
+  if(n && n.unread){
+    n.unread = false;
+    renderList();
+  }
+}
+function showOverflowMenu(id, anchor){
+  // simple menu: mark read / snooze / dismiss (UI-only)
+  const menu = document.createElement('div');
+  menu.style.position='absolute';
+  menu.style.background='white';
+  menu.style.border='1px solid rgba(15,23,42,0.06)';
+  menu.style.padding='8px';
+  menu.style.borderRadius='8px';
+  menu.style.boxShadow='0 8px 20px rgba(2,6,23,0.08)';
+  menu.style.zIndex=1000;
+  menu.innerHTML = `<div style="padding:6px;cursor:pointer">Mark as read</div><div style="padding:6px;cursor:pointer">Snooze 1h</div><div style="padding:6px;cursor:pointer">Dismiss</div>`;
+  document.body.appendChild(menu);
+  const rect = anchor.getBoundingClientRect();
+  menu.style.left = (rect.right - 160) + 'px';
+  menu.style.top = (rect.bottom + 6) + 'px';
+  const cleanup = ()=>{ menu.remove(); window.removeEventListener('click', cleanup); };
+  window.addEventListener('click', cleanup);
+  menu.children[0].addEventListener('click', ()=>{ markRead(id); cleanup(); });
+  menu.children[1].addEventListener('click', ()=>{ showToast('Snoozed'); cleanup(); });
+  menu.children[2].addEventListener('click', ()=>{ notifications = notifications.filter(n=>n.id!==id); renderList(); cleanup(); });
+}
+
+/* ===== Toast ===== */
+function showToast(msg){
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.position='fixed';
+  t.style.right='20px';
+  t.style.bottom='20px';
+  t.style.background='rgba(15,23,42,0.92)';
+  t.style.color='white';
+  t.style.padding='10px 14px';
+  t.style.borderRadius='8px';
+  t.style.boxShadow='0 8px 20px rgba(2,6,23,0.2)';
+  document.body.appendChild(t);
+  setTimeout(()=>t.style.opacity='0', 2200);
+  setTimeout(()=>t.remove(), 2600);
+}
+
+/* ===== Settings modal behavior ===== */
+const modal = el('modalBackdrop');
+el('openSettings').addEventListener('click', openModal);
+el('cancelSettings').addEventListener('click', closeModal);
+el('resetSettings').addEventListener('click', ()=>{ if(confirm('Reset notification settings to defaults?')){ saveSettings(defaultSettings); applySettingsToUI(defaultSettings); showToast('Settings reset'); }});
+el('saveSettings').addEventListener('click', ()=>{
+  const s = {
+    desktop: el('desktopToggle').checked,
+    email: el('emailToggle').checked,
+    sound: el('soundToggle').checked,
+    categories:{
+      ai: el('aiToggle').checked,
+      lab: el('labToggle').checked,
+      shift: el('shiftToggle').checked,
+      message: el('msgToggle').checked
+    },
+    severity:{
+      ai: el('aiSeverity').value,
+      lab: el('labSeverity').value,
+      shift: el('shiftSeverity').value,
+      message: el('msgSeverity').value
+    },
+    frequency: document.querySelector('input[name="freq"]:checked').value,
+    volume: 70
+  };
+  saveSettings(s);
+  applySettingsToUI(s);
+  closeModal();
+  showToast('Settings saved');
+});
+
+el('playTest').addEventListener('click', ()=>{
+  const s = loadSettings();
+  if(s.desktop){
+    requestDesktopPermissionAndNotify('Riaya test', 'This is a test desktop notification.');
+  } else {
+    showToast('Enable desktop notifications to receive a test.');
+  }
+  if(s.sound){
+    playBeep();
+  }
+});
+
+/* Modal open/close and focus trap */
+function openModal(){
+  const s = loadSettings();
+  applySettingsToUI(s);
+  modal.style.display='flex';
+  // trap focus (simple)
+  const focusable = modal.querySelectorAll('input,button,select');
+  focusable[0].focus();
+}
+function closeModal(){ modal.style.display='none'; el('openSettings').focus(); }
+
+/* Apply settings to modal UI */
+function applySettingsToUI(s){
+  el('desktopToggle').checked = !!s.desktop;
+  el('emailToggle').checked = !!s.email;
+  el('soundToggle').checked = !!s.sound;
+  el('aiToggle').checked = !!(s.categories && s.categories.ai);
+  el('labToggle').checked = !!(s.categories && s.categories.lab);
+  el('shiftToggle').checked = !!(s.categories && s.categories.shift);
+  el('msgToggle').checked = !!(s.categories && s.categories.message);
+  el('aiSeverity').value = s.severity?.ai || 'all';
+  el('labSeverity').value = s.severity?.lab || 'all';
+  el('shiftSeverity').value = s.severity?.shift || 'all';
+  el('msgSeverity').value = s.severity?.message || 'all';
+  const freq = s.frequency || 'immediate';
+  const radios = document.querySelectorAll('input[name="freq"]');
+  radios.forEach(r=> r.checked = (r.value === freq));
+}
+
+/* Desktop Notification permission and test */
+async function requestDesktopPermissionAndNotify(title, body){
+  if(!('Notification' in window)){ showToast('Desktop notifications not supported in this browser.'); return; }
+  if(Notification.permission === 'granted'){
+    new Notification(title, { body });
+  } else if(Notification.permission !== 'denied'){
+    const p = await Notification.requestPermission();
+    if(p === 'granted'){ new Notification(title, { body }); showToast('Desktop notifications enabled'); }
+    else { showToast('Desktop notifications blocked'); }
+  } else {
+    showToast('Desktop notifications blocked in browser settings');
+  }
+}
+
+/* Sound test */
+function playBeep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 880;
+    g.gain.value = 0.02;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    setTimeout(()=>{ o.stop(); ctx.close(); }, 220);
+  }catch(e){ /* ignore */ }
+}
+
+/* Mark all read */
+el('markAllRead').addEventListener('click', ()=>{
+  notifications.forEach(n=> n.unread = false);
+  renderList();
+  showToast('All notifications marked read');
+});
+
+/* Search and filter events */
+el('searchInput').addEventListener('input', ()=> renderList());
+el('typeFilter').addEventListener('change', ()=> renderList());
+
+/* AI chips filter */
+document.querySelectorAll('.chip').forEach(ch=>{
+  ch.addEventListener('click', ()=>{ const f = ch.dataset.filter; el('typeFilter').value = mapChipToFilter(f); renderList(); });
+  ch.addEventListener('keydown', (e)=>{ if(e.key==='Enter') ch.click(); });
+});
+function mapChipToFilter(c){
+  switch(c){ case 'critical': return 'critical'; case 'labs': return 'lab'; case 'shifts': return 'shift'; case 'ai': return 'ai'; case 'messages': return 'message'; default: return 'all'; }
+}
+
+/* View all */
+el('viewAll').addEventListener('click', ()=> showToast('Open full notifications page'));
+
+/* Initialize */
+(function init(){
+  // load settings into UI
+  const s = loadSettings();
+  applySettingsToUI(s);
+  // render list
+  renderList();
+  // update KPI counts (simple)
+  el('k-critical').textContent = notifications.filter(n=>n.type==='critical').length;
+  el('k-labs').textContent = notifications.filter(n=>n.type==='lab').length;
+  el('k-shifts').textContent = notifications.filter(n=>n.type==='shift').length;
+  el('k-ai').textContent = notifications.filter(n=>n.type==='ai').length;
+  el('k-msg').textContent = notifications.filter(n=>n.type==='message').length;
+})();
+</script>
+</body>
+</html>
